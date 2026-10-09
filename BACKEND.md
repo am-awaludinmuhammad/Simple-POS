@@ -13,7 +13,7 @@
 
 ## Architecture
 
-Use a modular, feature-based architecture.
+Use a modular, feature-based architecture.****
 
 Each business feature must have its own module.
 
@@ -32,7 +32,7 @@ src/
 ├── config/
 ├── lib/
 ├── app.ts
-└── server.ts
+└── index.ts
 ```
 
 Do not organize the entire application by technical layer such as:
@@ -55,10 +55,14 @@ Typical structure:
 ```text
 modules/
 └── products/
+    ├── dto/
+    │   ├── create-product.dto.ts
+    │   ├── update-product.dto.ts
+    │   ├── get-products-query.dto.ts
+    │   └── product-params.dto.ts
     ├── product.route.ts
     ├── product.controller.ts
     ├── product.service.ts
-    ├── product.schema.ts
     └── product.types.ts
 ```
 
@@ -72,18 +76,17 @@ For example, do not create `product.types.ts` if there are no module-specific ty
 
 The standard request flow is:
 
-```text
-Route
-  ↓
-Middleware
-  ↓
-Controller
-  ↓
-Service
-  ↓
-Prisma
-  ↓
-PostgreSQL
+```mermaid
+flowchart TD
+    A[HTTP Request] --> B[Route]
+    B --> C[Validation Middleware]
+    C -->|Invalid| D[AppError]
+    C -->|Valid| E[Controller]
+    E --> F[Service]
+    F -->|Success| G[Success Response]
+    F -->|Error| H[Error Handler]
+    D --> H
+    H --> I[Error Response]
 ```
 
 Each layer has a specific responsibility.
@@ -111,38 +114,64 @@ Routes must not contain business logic or database queries.
 
 ### Controller
 
-Controllers are responsible for HTTP concerns:
+Controllers are responsible for handling HTTP concerns:
 
-- Reading request parameters
-- Reading request body
-- Reading authenticated user information
-- Calling the service
-- Returning the HTTP response
+- Reading request parameters, query strings, and request bodies
+- Reading authenticated user information when needed
+- Calling the appropriate service
+- Returning HTTP responses
+- Forwarding errors to the centralized error handler using `next(error)`
+
+Controllers should not contain business logic or handle errors by constructing HTTP error responses manually. Business errors should be thrown by the service and forwarded to the centralized error handler.
 
 Example:
-
 ```ts
-async function create(req: Request, res: Response) {
-  const product = await productService.create(req.body);
+export async function createProduct(
+  req: Request,
+  res: Response,
+): Promise<void> {
+  const product = await createProductService(
+    req.body as CreateProductDto,
+  );
 
   res.status(201).json({
+    message: "Product created successfully.",
     data: product,
   });
 }
 ```
+Controllers should remain thin and focus on HTTP concerns.
 
-Controllers must remain thin.
+- Do not put business logic directly inside controllers.
+- Simple, straightforward Prisma queries may be placed directly in controllers when doing so avoids unnecessary service wrappers.
+- Queries involving business rules, complex filtering, multiple database operations, or reusable operations should be handled by services.
+- Allow errors to propagate to the centralized error-handling middleware. Express 5 automatically forwards errors thrown by asynchronous route handlers and rejected promises, so `next(error)` is not needed solely for error propagation.
 
-Do not put business logic or Prisma queries directly inside controllers.
+Prefer simplicity over unnecessary abstraction while keeping business logic separate from HTTP concerns.
 
 ### Service
 
-Services contain business logic and database operations.
+Services handle business logic and database operations when additional logic or abstraction is needed.
+
+Simple, straightforward Prisma queries may be handled directly in controllers to avoid unnecessary service wrappers.
 
 Example:
 
 ```ts
-async function create(data: CreateProductInput) {
+// product.service.ts
+export async function createProduct(data: CreateProductInput) {
+  const existingProduct = await prisma.product.findUnique({
+    where: { sku: data.sku },
+  });
+
+  if (existingProduct) {
+    throw new AppError(
+      409,
+      ERROR_CODES.CONFLICT,
+      "Product SKU already exists.",
+    );
+  }
+
   return prisma.product.create({
     data,
   });
@@ -151,13 +180,24 @@ async function create(data: CreateProductInput) {
 
 Services may:
 
-- Validate business rules
-- Query Prisma
-- Create records
-- Update records
-- Delete records
-- Execute database transactions
-- Call other services when necessary
+- Validate business rules and enforce business constraints.
+- Query Prisma and perform database operations.
+- Create, update, and delete records.
+- Execute database transactions.
+- Coordinate multiple database operations.
+- Call other services when necessary.
+- Throw `AppError` for expected application errors, using the appropriate error code from the centralized `ERROR_CODES` definition.
+
+**Guidelines:**
+
+- Do not create service functions solely to wrap simple Prisma queries without meaningful value.
+- Keep business logic out of controllers.
+- Use services for operations involving business rules, multiple operations, transactions, or reusable logic.
+- Throw `AppError` for expected errors instead of returning HTTP responses or throwing plain `Error` objects for known application failures.
+- Use `ERROR_CODES` from the centralized error definitions. Do not hardcode error code strings.
+- Let the centralized error handler convert application errors into HTTP responses.
+- Services must not handle HTTP requests or responses.
+
 
 ## No Repository Layer
 
@@ -335,39 +375,95 @@ Collection responses should use:
   }
 }
 ```
+## Error Response Format
 
-Errors should use:
+All modules must use a consistent error response format.
+
+Example:
 
 ```json
 {
-  "error": {
-    "code": "PRODUCT_NOT_FOUND",
-    "message": "Product not found"
-  }
+  "code": "VALIDATION_ERROR",
+  "message": "Request validation failed.",
+  "errors": [
+    {
+      "field": "phoneNumber",
+      "code": "invalid_type",
+      "message": "Invalid input: expected string, received undefined"
+    }
+  ]
 }
 ```
 
-Keep response formats consistent across modules.
+- `code`: A stable application error code.
+- `message`: A human-readable error message.
+- `errors`: Optional details for validation errors or other errors that require additional information.
+
+For errors without additional details, omit the `errors` field.
 
 ## Error Handling
 
-Do not use repetitive `try/catch` blocks in every controller unless the error needs special handling.
+Use the application's centralized error-handling middleware to handle application errors and unexpected errors consistently.
 
-Use the application's centralized error-handling middleware.
-
-Services should throw appropriate application errors when business rules are violated.
+- Avoid repetitive `try/catch` blocks in controllers unless special error handling is required.
+- Services should throw `AppError` when business rules are violated or expected application errors occur.
+- Use error codes from the centralized `ERROR_CODES` definition. Do not hardcode error code strings.
+- Controllers should not manually construct or format error responses.
+- The centralized error handler is responsible for determining the HTTP status code and formatting the error response.
+- Unexpected errors should return a generic internal server error without exposing sensitive implementation details.
 
 Example:
 
 ```ts
 throw new AppError(
-  "PRODUCT_NOT_FOUND",
+  404,
+  ERROR_CODES.NOT_FOUND,
   "Product not found",
-  404
 );
 ```
 
-Controllers should not manually format every possible error.
+For resource-specific errors, add dedicated codes such as `PRODUCT_NOT_FOUND` to `ERROR_CODES` when needed.
+
+## Controller Error Propagation
+
+Controllers should allow errors to propagate to the centralized error-handling middleware.
+
+Express 5 automatically forwards errors thrown by asynchronous route handlers and rejected promises to the error-handling middleware.
+
+- Do not use repetitive `try/catch` blocks solely to forward errors.
+- Use `try/catch` only when specific error handling or recovery is required.
+- Do not manually format error responses in controllers. Let the centralized error handler handle error responses consistently.
+- 
+## Error Handling
+
+Use the application's centralized error-handling middleware to handle application errors and unexpected errors consistently.
+
+- Do not use repetitive `try/catch` blocks in every controller unless the error requires special handling.
+- Services should throw `AppError` when business rules are violated or expected application errors occur.
+- Use error codes from the centralized `ERROR_CODES` definition. Do not hardcode error code strings.
+- Controllers should not manually format error responses. Let the centralized error handler determine the HTTP status code and response format.
+- Unexpected errors should be handled by the centralized error handler and returned as a generic internal server error.
+
+Example:
+
+```ts
+throw new AppError(
+  404,
+  ERROR_CODES.NOT_FOUND,
+  "Product not found",
+);
+```
+
+For resource-specific errors, add a dedicated code such as `PRODUCT_NOT_FOUND` to `ERROR_CODES` when needed.
+
+## Controller Error Propagation
+
+Controllers should allow errors to reach the centralized error handler.
+
+If using Express 4, wrap asynchronous controller logic with `try/catch` and pass errors to `next(error)`, or use a shared async-handler wrapper to avoid repeating the same pattern.
+
+With Express 5, rejected promises from async route handlers are automatically forwarded to error-handling middleware.
+
 
 ## Naming Convention
 
