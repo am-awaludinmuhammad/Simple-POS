@@ -1,10 +1,10 @@
 import { z } from "zod";
 
 export const loginSchema = z.object({
-  phoneNumber: z
+  identifier: z
     .string()
     .trim()
-    .min(1, "Phone number is required"),
+    .min(1, "Username or phone number is required"),
 
   password: z
     .string()

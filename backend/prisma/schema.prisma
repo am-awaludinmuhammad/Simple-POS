@@ -23,6 +23,7 @@ model User {
   id                String    @id @default(uuid())
   name              String
   roleId            String    @map("role_id")
+  username          String    @unique
   phoneNumber       String    @unique @map("phone_number")
   passwordHash      String    @map("password_hash")
   isActive          Boolean   @default(true) @map("is_active")

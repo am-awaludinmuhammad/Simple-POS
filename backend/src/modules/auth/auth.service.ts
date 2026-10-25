@@ -12,11 +12,14 @@ import { ERROR_CODES } from "../../lib/error-codes.js";
 import { AppError } from "../../lib/app-error.js";
 
 export async function loginService(data: LoginDto) {
-  const { phoneNumber, password } = data;
+  const { identifier, password } = data;
 
-  const user = await prisma.user.findUnique({
+  const user = await prisma.user.findFirst({
     where: {
-      phoneNumber,
+      OR: [
+        { username: identifier },
+        { phoneNumber: identifier },
+      ],
     },
     include: {
       role: true,
@@ -27,7 +30,7 @@ export async function loginService(data: LoginDto) {
     throw new AppError(
       401,
       ERROR_CODES.INVALID_CREDENTIALS,
-      "Invalid phone number or password.",
+      "Invalid username, phone number, or password.",
     );
   }
 
@@ -48,7 +51,7 @@ export async function loginService(data: LoginDto) {
     throw new AppError(
       401,
       ERROR_CODES.INVALID_CREDENTIALS,
-      "Invalid phone number or password.",
+      "Invalid username, phone number, or password.",
     );
   }
 
