@@ -618,6 +618,93 @@ Provide required variables through:
 
 Never commit actual secrets.
 
+## API Documentation
+
+The API is documented using Swagger UI and can be accessed at:
+
+```
+http://localhost:3000/docs
+```
+
+Raw OpenAPI spec is available at:
+
+```
+http://localhost:3000/docs/openapi.json
+```
+
+### Adding Documentation for a New Module
+
+Each module should include API documentation in a `module-name.docs.ts` file.
+
+Example structure:
+
+```text
+src/modules/products/
+├── products.route.ts
+├── products.controller.ts
+├── products.service.ts
+├── dto/
+│   ├── create-product.dto.ts
+│   └── update-product.dto.ts
+└── products.docs.ts        ← Documentation file
+```
+
+### Documentation Format
+
+Use JSDoc with Swagger annotations in the `*.docs.ts` file:
+
+```ts
+/**
+ * @swagger
+ * /api/v1/products:
+ *   get:
+ *     summary: Get all products
+ *     description: Retrieve a paginated list of all products
+ *     tags:
+ *       - Products
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *         description: Page number
+ *     responses:
+ *       200:
+ *         description: Products retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Product'
+ */
+export {};
+```
+
+### How Documentation Works
+
+1. Each module exports a `*.docs.ts` file with JSDoc Swagger comments.
+2. `src/lib/swagger-config.ts` automatically discovers and scans all `*.docs.ts` files.
+3. The OpenAPI spec is generated from these annotations.
+4. Swagger UI displays the interactive documentation.
+
+### Reusable Schemas
+
+Common schemas are defined in `src/lib/openapi-definition.ts`:
+
+- `User`: Standard user object
+- `Error`: Standard error response
+
+Reference them in your docs:
+
+```ts
+$ref: '#/components/schemas/User'
+$ref: '#/components/schemas/Error'
+```
+
 ## Adding a New Feature
 
 When adding a new business feature:
