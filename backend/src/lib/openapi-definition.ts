@@ -18,6 +18,11 @@ const openApiDefinition = {
       description: "Production server",
     },
   ],
+  security: [
+    {
+      BearerAuth: [],
+    },
+  ],
   components: {
     securitySchemes: {
       BearerAuth: {
