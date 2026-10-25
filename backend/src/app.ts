@@ -3,6 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import authRoutes from "./modules/auth/auth.routes.js";
+import categoryRoutes from "./modules/category/category.routes.js";
 import docsRoutes from "./lib/docs-routes.js";
 import { errorHandler } from "./lib/error-handler.js";
 
@@ -36,6 +37,7 @@ app.use(
 );
 
 app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/categories", categoryRoutes);
 
 app.use("/docs", docsRoutes);
 

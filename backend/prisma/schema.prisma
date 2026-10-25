@@ -52,3 +52,15 @@ model RefreshSession {
   @@index([userId])
   @@map("refresh_sessions")
 }
+
+model Category {
+  id        String    @id @default(uuid())
+  name      String
+  isActive  Boolean   @default(true) @map("is_active")
+  createdBy String    @map("created_by")
+  updatedBy String    @map("updated_by")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("categories")
+}
