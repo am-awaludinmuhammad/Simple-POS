@@ -7,6 +7,7 @@ import categoryRoutes from "./modules/category/category.routes.js";
 import menuRoutes from "./modules/menu/menu.routes.js";
 import unitRoutes from "./modules/unit/unit.routes.js";
 import inventoryRoutes from "./modules/inventory/inventory.routes.js";
+import recipeRoutes from "./modules/recipe/recipe.routes.js";
 import docsRoutes from "./lib/docs-routes.js";
 import { errorHandler } from "./lib/error-handler.js";
 
@@ -44,6 +45,7 @@ app.use("/api/v1/categories", categoryRoutes);
 app.use("/api/v1/menus", menuRoutes);
 app.use("/api/v1/units", unitRoutes);
 app.use("/api/v1/inventories", inventoryRoutes);
+app.use("/api/v1/recipes", recipeRoutes);
 
 app.use("/docs", docsRoutes);
 

@@ -72,6 +72,7 @@ model Menu {
   name       String
   categoryId String    @map("category_id")
   price      Int
+  recipeId   String?   @unique @map("recipe_id")
   isActive   Boolean   @default(true) @map("is_active")
   createdBy  String    @map("created_by")
   updatedBy  String    @map("updated_by")
@@ -79,6 +80,7 @@ model Menu {
   updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   category Category @relation(fields: [categoryId], references: [id])
+  recipe   Recipe?  @relation(fields: [recipeId], references: [id])
 
   @@map("menus")
 }
@@ -111,6 +113,36 @@ model Inventory {
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   unit Unit @relation(fields: [unitId], references: [id])
+  recipeIngredients RecipeIngredient[]
 
   @@map("inventories")
+}
+
+model Recipe {
+  id        String    @id @default(uuid())
+  isActive  Boolean   @default(true) @map("is_active")
+  createdBy String    @map("created_by")
+  updatedBy String    @map("updated_by")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  menu Menu?
+  ingredients RecipeIngredient[]
+
+  @@map("recipes")
+}
+
+model RecipeIngredient {
+  id          String    @id @default(uuid())
+  recipeId    String    @map("recipe_id")
+  inventoryId String    @map("inventory_id")
+  quantity    Int
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  recipe    Recipe    @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  inventory Inventory @relation(fields: [inventoryId], references: [id])
+
+  @@unique([recipeId, inventoryId])
+  @@map("recipe_ingredients")
 }
