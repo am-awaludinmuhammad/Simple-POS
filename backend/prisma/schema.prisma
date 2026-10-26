@@ -82,3 +82,35 @@ model Menu {
 
   @@map("menus")
 }
+
+model Unit {
+  id        String    @id @default(uuid())
+  code      String    @unique
+  name      String
+  isActive  Boolean   @default(true) @map("is_active")
+  createdBy String    @map("created_by")
+  updatedBy String    @map("updated_by")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  inventories Inventory[]
+
+  @@map("units")
+}
+
+model Inventory {
+  id           String    @id @default(uuid())
+  name         String
+  unitId       String    @map("unit_id")
+  currentStock Int       @map("current_stock")
+  minimumStock Int       @map("minimum_stock")
+  isActive     Boolean   @default(true) @map("is_active")
+  createdBy    String    @map("created_by")
+  updatedBy    String    @map("updated_by")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  unit Unit @relation(fields: [unitId], references: [id])
+
+  @@map("inventories")
+}
